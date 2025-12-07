@@ -1,0 +1,23 @@
+{
+  "name": "@pebbledash/app-demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "predev": "pnpm -w -r build",
+    "dev": "vite"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.19",
+    "vite": "^7.2.6"
+  },
+  "dependencies": {
+    "@pebbledash/core": "workspace:*",
+    "@pebbledash/react": "workspace:*",
+    "@pebbledash/renderer-dom": "workspace:*",
+    "@pebbledash/web-component": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

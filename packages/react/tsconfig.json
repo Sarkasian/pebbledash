@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declarationMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler"
+  },
+  "references": [{ "path": "../core" }, { "path": "../renderer-dom" }],
+  "include": ["src/**/*"]
+}

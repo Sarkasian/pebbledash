@@ -1,0 +1,314 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard Demo - Vanilla</title>
+    <style>
+      #controls {
+        margin-bottom: 12px;
+        font:
+          14px/1.4 system-ui,
+          sans-serif;
+      }
+      #controls label {
+        margin-right: 12px;
+      }
+      #dash {
+        width: 100vw;
+        height: 60vh;
+        border: 1px solid #ccc;
+        position: relative;
+      }
+      .ud-tile {
+        background: #f5f5f5;
+        outline: 1px solid #ddd;
+      }
+
+      /* Default widget styles */
+      .widget-default {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+      .widget-default-label {
+        position: absolute;
+        left: 4px;
+        top: 4px;
+        font:
+          12px/1.2 system-ui,
+          sans-serif;
+        color: #333;
+      }
+      .widget-default-delete {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 6px 10px;
+        border: none;
+        border-radius: 6px;
+        background: #d33;
+        color: #fff;
+        font:
+          12px/1.2 system-ui,
+          sans-serif;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        z-index: 5;
+      }
+      .widget-default-delete:hover {
+        background: #c00;
+      }
+
+      /* Widget styles */
+      .widget-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #999;
+        font:
+          14px/1.4 system-ui,
+          sans-serif;
+        text-align: center;
+        padding: 12px;
+        box-sizing: border-box;
+      }
+
+      /* Edge overlay styling */
+      .ud-edge {
+        position: absolute;
+        z-index: 10;
+        pointer-events: auto;
+      }
+      .ud-edge:hover {
+        box-shadow:
+          0 0 0 2px rgba(66, 133, 244, 0.6) inset,
+          0 0 6px rgba(66, 133, 244, 0.7);
+      }
+      .ud-edge.disabled {
+        pointer-events: none;
+        opacity: 0.4;
+      }
+      .ud-edge-vertical {
+        width: 6px;
+        margin-left: -3px;
+        cursor: ew-resize;
+      }
+      .ud-edge-horizontal {
+        height: 6px;
+        margin-top: -3px;
+        cursor: ns-resize;
+      }
+      .ud-edge {
+        touch-action: none;
+        will-change: transform;
+      }
+      .ud-edge.edge--oob {
+        background-color: rgba(255, 0, 0, 0.08);
+        filter: saturate(0.9) hue-rotate(-5deg) brightness(0.97);
+      }
+      .dragging .ud-edge:hover {
+        box-shadow: none;
+      }
+      .dragging .ud-boundary {
+        display: none;
+      }
+      .dragging .ud-edge:hover {
+        box-shadow: none;
+      }
+
+      /* Boundary highlight overlays from core navigator */
+      .ud-boundary {
+        position: absolute;
+        z-index: 12;
+        pointer-events: none;
+      }
+      .ud-boundary.ud-vertical {
+        width: 6px;
+        margin-left: -3px;
+        background: rgba(66, 133, 244, 0.25);
+      }
+      .ud-boundary.ud-horizontal {
+        height: 6px;
+        margin-top: -3px;
+        background: rgba(66, 133, 244, 0.25);
+      }
+      .ud-boundary.active {
+        background: rgba(66, 133, 244, 0.6);
+        box-shadow: 0 0 6px rgba(66, 133, 244, 0.6);
+      }
+
+      /* Cursor hints per mode */
+      .mode-insert .ud-edge {
+        cursor: pointer;
+      }
+      .mode-insert .ud-edge-vertical {
+        cursor: copy;
+      }
+      .mode-insert .ud-edge-horizontal {
+        cursor: copy;
+      }
+      .mode-resize .ud-edge.disabled {
+        cursor: not-allowed;
+      }
+
+      /* Reduced motion support for accessibility */
+      @media (prefers-reduced-motion: reduce) {
+        .ud-edge,
+        .ud-boundary,
+        .ud-tile {
+          transition: none !important;
+          animation: none !important;
+        }
+        .ud-edge:hover {
+          box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.6) inset;
+        }
+      }
+
+      /* Focus indicator for keyboard navigation */
+      .ud-tile:focus-within {
+        outline: 2px solid #4285f4;
+        outline-offset: -2px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Vanilla DOM Renderer</h1>
+    <div id="controls">
+      <label><input type="radio" name="mode" value="insert" checked /> Insertion mode</label>
+      <label><input type="radio" name="mode" value="resize" /> Resize mode</label>
+    </div>
+    <div id="dash"></div>
+    <script type="module">
+      import { BaseDashboard } from '@pebbledash/renderer-dom';
+      import { createConfigButton } from './config-panel.ts';
+
+      // Store reference to dashboard for widgets
+      let dashboardInstance = null;
+
+      // ============================================
+      // Default Widget - Replicates the original tile style
+      // Shows tile ID label and a delete button
+      // ============================================
+      function createDefaultWidget(ctx) {
+        const { tileId, element } = ctx;
+        const container = document.createElement('div');
+        container.className = 'widget-default';
+
+        const label = document.createElement('div');
+        label.className = 'widget-default-label';
+        label.textContent = tileId;
+        label.setAttribute('aria-hidden', 'true');
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'widget-default-delete';
+        btn.textContent = 'Delete';
+        btn.setAttribute('aria-label', `Delete tile ${tileId}`);
+
+        const handleClick = async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!dashboardInstance) return;
+          const model = dashboardInstance.getModel();
+          // Cast tileId to any to match the TileId branded type
+          await model.deleteTile(/** @type {any} */ (tileId));
+          // Dashboard will re-render automatically via subscription
+        };
+
+        return {
+          mount() {
+            btn.addEventListener('click', handleClick);
+            container.appendChild(label);
+            container.appendChild(btn);
+            element.appendChild(container);
+          },
+          unmount() {
+            btn.removeEventListener('click', handleClick);
+            container.remove();
+          },
+        };
+      }
+
+      /**
+       * Placeholder widget - displays a message in the center of the tile.
+       */
+      function createPlaceholderWidget(ctx) {
+        const { tileId, meta, element } = ctx;
+        const container = document.createElement('div');
+        container.className = 'widget-placeholder';
+
+        return {
+          mount() {
+            const message = meta.message || `Tile ${tileId}`;
+            container.textContent = message;
+            element.appendChild(container);
+          },
+          unmount() {
+            container.remove();
+          },
+          update(newMeta) {
+            const message = newMeta.message || `Tile ${tileId}`;
+            container.textContent = message;
+          },
+        };
+      }
+
+      // Widget registry - 'default' is used when no widgetType is specified
+      const widgets = {
+        default: createDefaultWidget,
+        placeholder: createPlaceholderWidget,
+      };
+
+      // ============================================
+      // Dashboard Setup
+      // ============================================
+
+      // Allow E2E/manual to pass a snapshot via localStorage 'ud-snapshot'
+      const preload = (() => {
+        try {
+          const raw = localStorage.getItem('ud-snapshot');
+          if (raw) return JSON.parse(raw);
+        } catch {}
+        return undefined;
+      })();
+
+      const dash = new BaseDashboard({
+        container: '#dash',
+        defaults: { minTile: { width: 5, height: 5 }, epsilon: 1e-6 },
+        features: { overlays: true, keyboard: true, startMode: 'insert' },
+        initialLayout: preload,
+        widgets, // Pass the widget registry
+      });
+      await dash.mount();
+
+      // Store reference for widgets to access
+      dashboardInstance = dash;
+
+      // Add configuration panel button
+      createConfigButton(document.body, dash);
+
+      // Expose for E2E convenience
+      // @ts-ignore
+      window.dash = dash;
+
+      document.querySelectorAll('input[name="mode"]').forEach((el) => {
+        el.addEventListener('change', (e) => {
+          // @ts-ignore
+          const mode = e.target.value;
+          dash.setMode(mode);
+        });
+      });
+    </script>
+    <p>
+      Also see <a href="/web-component.html">Web Component</a> and
+      <a href="/react.html">React</a> demos.
+    </p>
+    <p>
+      <strong>Widget System:</strong> Tiles use the <code>default</code> widget by default. Set
+      <code>meta.widgetType</code> to use other widgets like <code>placeholder</code>.
+    </p>
+  </body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "packages/core/src/index.ts",
+    "packages/renderer-dom/src/index.ts",
+    "packages/react/src/index.tsx",
+    "packages/web-component/src/index.ts",
+    "packages/devtools/src/index.ts"
+  ],
+  "out": "docs/api",
+  "name": "Dashboarding API Reference",
+  "readme": "README.md",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "skipErrorChecking": true,
+  "validation": {
+    "notExported": true,
+    "invalidLink": false,
+    "notDocumented": false
+  },
+  "navigationLinks": {
+    "GitHub": "https://github.com/dashboarding/dashboarding",
+    "Documentation": "/docs"
+  },
+  "categorizeByGroup": true,
+  "categoryOrder": ["Core", "Renderer", "React", "Web Component", "Devtools", "*"],
+  "sort": ["alphabetical", "source-order"],
+  "plugin": ["typedoc-plugin-markdown"]
+}

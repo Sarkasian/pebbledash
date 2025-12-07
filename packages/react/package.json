@@ -1,0 +1,31 @@
+{
+  "name": "@pebbledash/react",
+  "version": "0.1.0",
+  "description": "React wrapper for dashboarding core",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18",
+    "@pebbledash/core": "0.1.0",
+    "@pebbledash/renderer-dom": "0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "name": "Pebbledash",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Highly configurable dashboarding library",
+  "license": "MIT",
+  "packageManager": "pnpm@8.15.0",
+  "engines": {
+    "node": ">=18.18"
+  },
+  "pnpm": {
+    "overrides": {
+      "js-yaml": ">=4.1.1"
+    }
+  },
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' run build",
+    "build:packages": "pnpm -r --filter './packages/*' run build",
+    "clean": "pnpm -r --filter './packages/*' run clean",
+    "demo": "pnpm --dir apps/demo exec vite",
+    "demo:fast": "pnpm --filter @pebbledash/app-demo run dev -- --force",
+    "typecheck": "tsc -b -v tsconfig.workspaces.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test -c e2e/playwright/playwright.config.ts",
+    "e2e:ui": "playwright test --ui -c e2e/playwright/playwright.config.ts",
+    "docs:decision-tree": "tsx scripts/print-decision-tree.ts",
+    "docs:api": "typedoc",
+    "bench": "vitest bench",
+    "analyze": "tsx scripts/analyze-bundle.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^20.11.30",
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.19",
+    "@typescript-eslint/eslint-plugin": "^8.48.1",
+    "@typescript-eslint/parser": "^8.48.1",
+    "@vitest/coverage-v8": "^4.0.15",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "globals": "^16.5.0",
+    "jsdom": "^27.1.0",
+    "playwright": "^1.46.0",
+    "prettier": "^3.2.5",
+    "tsx": "^4.7.2",
+    "typedoc": "^0.28.15",
+    "typedoc-plugin-markdown": "^4.9.0",
+    "typescript": "^5.4.0",
+    "vitest": "^4.0.15"
+  },
+  "dependencies": {
+    "pnpm": "^10.24.0"
+  }
+}

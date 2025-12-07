@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard Demo - Web Component</title>
+    <style>
+      ud-dashboard {
+        display: block;
+        width: 100vw;
+        height: 60vh;
+        border: 1px solid #ccc;
+      }
+      .ud-tile {
+        background: #eef6ff;
+        outline: 1px solid #cfe3ff;
+      }
+
+      /* Widget styles */
+      .widget-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #666;
+        font:
+          14px/1.4 system-ui,
+          sans-serif;
+        text-align: center;
+        padding: 12px;
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Web Component</h1>
+    <ud-dashboard id="dash"></ud-dashboard>
+    <script type="module">
+      import '@pebbledash/web-component';
+      import { DashboardModel } from '@pebbledash/core';
+
+      // Example widget factory
+      function createPlaceholderWidget(ctx) {
+        const { tileId, meta, element } = ctx;
+        const container = document.createElement('div');
+        container.className = 'widget-placeholder';
+
+        return {
+          mount() {
+            const message = meta.message || `Tile ${tileId}`;
+            container.textContent = message;
+            element.appendChild(container);
+          },
+          unmount() {
+            container.remove();
+          },
+          update(newMeta) {
+            const message = newMeta.message || `Tile ${tileId}`;
+            container.textContent = message;
+          },
+        };
+      }
+
+      // Widget registry
+      const widgets = {
+        placeholder: createPlaceholderWidget,
+      };
+
+      const model = new DashboardModel();
+      await model.initialize();
+
+      const dashEl = document.getElementById('dash');
+      dashEl.widgets = widgets; // Set widget registry
+      dashEl.model = model;
+    </script>
+    <p><a href="/">Back to vanilla</a></p>
+    <p>
+      <strong>Widget System:</strong> Tiles are blank canvases by default. Set the
+      <code>widgets</code> property to render custom content based on <code>meta.widgetType</code>.
+    </p>
+  </body>
+</html>
