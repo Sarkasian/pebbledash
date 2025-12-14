@@ -12,6 +12,22 @@ import {
   createConfig,
   getAffectedTiles,
 } from '@pebbledash/core';
+import { getConfigPreviewStyles } from './styles.js';
+
+export interface ConfigPreviewOptions {
+  /** Custom render function for tile preview (return cleanup function) */
+  onRenderTilePreview?: (
+    tileId: TileId,
+    tileElement: HTMLElement,
+    status: { isAffected: boolean; violatesMin: boolean; violatesMax: boolean }
+  ) => () => void;
+  /** Custom colors for the built-in preview */
+  previewColors?: {
+    affected?: string;
+    compliant?: string;
+    violating?: string;
+  };
+}
 
 /**
  * Configuration preview overlay that shows:
@@ -28,10 +44,34 @@ export class ConfigPreviewOverlay {
   private isActive = false;
   private previewConfig: ExtendedConfig | null = null;
   private affectedTiles: TileId[] = [];
+  private readonly rootClass: string;
+  private readonly options: ConfigPreviewOptions;
+  private customCleanups: Array<() => void> = [];
 
-  constructor(container: HTMLElement, model: DashboardModel) {
+  constructor(
+    container: HTMLElement, 
+    model: DashboardModel, 
+    options: ConfigPreviewOptions = {},
+    rootClass: string = 'ud'
+  ) {
     this.container = container;
     this.model = model;
+    this.options = options;
+    this.rootClass = rootClass;
+    
+    // Inject preview styles
+    this.injectStyles();
+  }
+
+  /** Inject preview styles if not already present */
+  private injectStyles(): void {
+    const styleId = `${this.rootClass}-config-preview-styles`;
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = getConfigPreviewStyles(this.rootClass);
+    document.head.appendChild(style);
   }
 
   /**
@@ -61,18 +101,9 @@ export class ConfigPreviewOverlay {
         : new Map(),
     );
 
-    // Create overlay container
+    // Create overlay container using CSS class
     this.overlayContainer = document.createElement('div');
-    this.overlayContainer.className = 'ud-config-preview-overlay';
-    this.overlayContainer.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      pointer-events: none;
-      z-index: 100;
-    `;
+    this.overlayContainer.className = `${this.rootClass}-config-preview-overlay`;
     this.container.appendChild(this.overlayContainer);
 
     // Render overlays for all tiles
@@ -115,6 +146,16 @@ export class ConfigPreviewOverlay {
   }
 
   private cleanup(): void {
+    // Run custom cleanups
+    for (const cleanup of this.customCleanups) {
+      try {
+        cleanup();
+      } catch (e) {
+        console.error('Error in preview cleanup:', e);
+      }
+    }
+    this.customCleanups = [];
+
     if (this.overlayContainer) {
       this.overlayContainer.remove();
       this.overlayContainer = null;
@@ -134,60 +175,59 @@ export class ConfigPreviewOverlay {
       const isAffected = this.affectedTiles.includes(tile.id);
       const constraints = tileConstraints.get(tile.id);
 
-      // Create tile overlay container
-      const tileOverlay = document.createElement('div');
-      tileOverlay.className = 'ud-config-preview-tile';
-      tileOverlay.dataset.tileId = tile.id;
-      tileOverlay.style.cssText = `
-        position: absolute;
-        left: ${tile.x}%;
-        top: ${tile.y}%;
-        width: ${tile.width}%;
-        height: ${tile.height}%;
-        box-sizing: border-box;
-        overflow: visible;
-      `;
+      // Calculate violation status
+      const minWidth = getEffectiveMinWidth(this.previewConfig, constraints?.minWidth);
+      const minHeight = getEffectiveMinHeight(this.previewConfig, constraints?.minHeight);
+      const maxWidth = getEffectiveMaxWidth(this.previewConfig, constraints?.maxWidth);
+      const maxHeight = getEffectiveMaxHeight(this.previewConfig, constraints?.maxHeight);
+      const violatesMin = tile.width < minWidth || tile.height < minHeight;
+      const violatesMax = (maxWidth < 100 && tile.width > maxWidth) || 
+                          (maxHeight < 100 && tile.height > maxHeight);
 
-      // Add affected tile highlight
+      // If custom render function provided, use it
+      if (this.options.onRenderTilePreview) {
+        // Find the tile element in the DOM
+        const tileEl = this.container.querySelector(`[data-tile-id="${tile.id}"]`) as HTMLElement;
+        if (tileEl) {
+          const cleanup = this.options.onRenderTilePreview(tile.id, tileEl, {
+            isAffected,
+            violatesMin,
+            violatesMax,
+          });
+          this.customCleanups.push(cleanup);
+        }
+        continue;
+      }
+
+      // Create tile overlay container using CSS classes
+      const tileOverlay = document.createElement('div');
+      tileOverlay.className = `${this.rootClass}-config-preview-tile`;
+      tileOverlay.dataset.tileId = tile.id;
+      tileOverlay.style.left = `${tile.x}%`;
+      tileOverlay.style.top = `${tile.y}%`;
+      tileOverlay.style.width = `${tile.width}%`;
+      tileOverlay.style.height = `${tile.height}%`;
+
+      // Add affected tile highlight using CSS classes
       if (isAffected) {
         const highlight = document.createElement('div');
-        highlight.className = 'ud-config-preview-highlight';
-        highlight.style.cssText = `
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(255, 100, 100, 0.2);
-          border: 2px dashed #ff4444;
-          box-sizing: border-box;
-        `;
+        highlight.className = `${this.rootClass}-config-preview-highlight`;
+        
+        // Apply custom colors if provided
+        if (this.options.previewColors?.affected) {
+          highlight.style.background = this.options.previewColors.affected;
+        }
         tileOverlay.appendChild(highlight);
 
         // Add warning indicator
         const indicator = document.createElement('div');
-        indicator.className = 'ud-config-preview-indicator';
-        indicator.style.cssText = `
-          position: absolute;
-          top: 4px;
-          right: 4px;
-          width: 20px;
-          height: 20px;
-          background: #ff4444;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-size: 14px;
-          font-weight: bold;
-        `;
+        indicator.className = `${this.rootClass}-config-preview-indicator`;
         indicator.textContent = '!';
         tileOverlay.appendChild(indicator);
       }
 
       // Render constraint boundaries
-      this.renderConstraintBoundaries(tileOverlay, tile, constraints);
+      this.renderConstraintBoundaries(tileOverlay, tile, constraints, violatesMin, violatesMax);
 
       this.overlayContainer.appendChild(tileOverlay);
     }
@@ -197,6 +237,8 @@ export class ConfigPreviewOverlay {
     tileOverlay: HTMLElement,
     tile: { x: number; y: number; width: number; height: number },
     constraints?: { minWidth?: number; minHeight?: number; maxWidth?: number; maxHeight?: number },
+    violatesMin?: boolean,
+    violatesMax?: boolean,
   ): void {
     if (!this.previewConfig) return;
 
@@ -205,35 +247,36 @@ export class ConfigPreviewOverlay {
     const maxWidth = getEffectiveMaxWidth(this.previewConfig, constraints?.maxWidth);
     const maxHeight = getEffectiveMaxHeight(this.previewConfig, constraints?.maxHeight);
 
-    // Calculate if tile violates min constraints
-    const violatesMinWidth = tile.width < minWidth;
-    const violatesMinHeight = tile.height < minHeight;
-    const violatesMin = violatesMinWidth || violatesMinHeight;
-
     // Render minimum size rectangle outline (two-layer visualization)
     // This rectangle shows the required minimum dimensions anchored at top-left
     if (minWidth > 0 || minHeight > 0) {
       const minSizeRect = document.createElement('div');
-      minSizeRect.className = 'ud-config-preview-boundary ud-min-size-rect';
+      minSizeRect.className = `${this.rootClass}-config-preview-boundary ${this.rootClass}-min-size-rect`;
+      
+      // Add violating class if needed
+      if (violatesMin) {
+        minSizeRect.classList.add('violating');
+      }
 
       // Calculate dimensions as percentage of tile size
       // For violating tiles, this will be > 100%, extending beyond the tile
       const rectWidthPct = (minWidth / tile.width) * 100;
       const rectHeightPct = (minHeight / tile.height) * 100;
 
-      // Use red for violating tiles, green for compliant tiles
-      const borderColor = violatesMin ? '#f44336' : '#4CAF50';
-
-      minSizeRect.style.position = 'absolute';
       minSizeRect.style.top = '0';
       minSizeRect.style.left = '0';
       minSizeRect.style.width = `${rectWidthPct}%`;
       minSizeRect.style.height = `${rectHeightPct}%`;
-      minSizeRect.style.borderWidth = '2px';
-      minSizeRect.style.borderStyle = 'dashed';
-      minSizeRect.style.borderColor = borderColor;
-      minSizeRect.style.boxSizing = 'border-box';
-      minSizeRect.style.pointerEvents = 'none';
+      
+      // Apply custom colors if provided
+      if (this.options.previewColors) {
+        const color = violatesMin 
+          ? this.options.previewColors.violating 
+          : this.options.previewColors.compliant;
+        if (color) {
+          minSizeRect.style.borderColor = color;
+        }
+      }
 
       tileOverlay.appendChild(minSizeRect);
     }
@@ -244,22 +287,21 @@ export class ConfigPreviewOverlay {
 
     if (violatesMaxWidth || violatesMaxHeight) {
       const maxSizeRect = document.createElement('div');
-      maxSizeRect.className = 'ud-config-preview-boundary ud-max-size-rect';
+      maxSizeRect.className = `${this.rootClass}-config-preview-boundary ${this.rootClass}-max-size-rect`;
 
       // Calculate dimensions as percentage of tile size
       const rectWidthPct = violatesMaxWidth ? (maxWidth / tile.width) * 100 : 100;
       const rectHeightPct = violatesMaxHeight ? (maxHeight / tile.height) * 100 : 100;
 
-      maxSizeRect.style.position = 'absolute';
       maxSizeRect.style.top = '0';
       maxSizeRect.style.left = '0';
       maxSizeRect.style.width = `${rectWidthPct}%`;
       maxSizeRect.style.height = `${rectHeightPct}%`;
-      maxSizeRect.style.borderWidth = '2px';
-      maxSizeRect.style.borderStyle = 'dashed';
-      maxSizeRect.style.borderColor = '#f44336';
-      maxSizeRect.style.boxSizing = 'border-box';
-      maxSizeRect.style.pointerEvents = 'none';
+      
+      // Apply custom colors if provided
+      if (this.options.previewColors?.violating) {
+        maxSizeRect.style.borderColor = this.options.previewColors.violating;
+      }
 
       tileOverlay.appendChild(maxSizeRect);
     }

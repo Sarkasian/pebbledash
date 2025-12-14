@@ -126,11 +126,11 @@ export class InsertionNavigator {
     this.model.interaction.setFromTile(String(tileId));
   }
 
-  pointerEnterEdge(
+  async pointerEnterEdge(
     edgeIdStr: string,
     pointer: { xPct: number; yPct: number },
     opts?: { fromTileId?: TileId },
-  ): void {
+  ): Promise<void> {
     // Synchronous precompute for immediate UX feedback in tests and renderers
     try {
       const [_, tileIdStr, side] = edgeIdStr.split('|');
@@ -320,7 +320,7 @@ export class InsertionNavigator {
     } catch {
       // ignore precompute errors; fall back to engine path
     }
-    void this.model.interactionHoverEdge({
+    await this.model.interactionHoverEdge({
       edgeId: edgeIdStr,
       pointer,
       fromTileId: opts?.fromTileId,
@@ -342,5 +342,21 @@ export class InsertionNavigator {
 
   async commit(): Promise<void> {
     await this.model.interactionCommit();
+  }
+
+  /**
+   * Get the currently focused tile ID, if any.
+   * Returns the tile ID from the focused boundary in the current group,
+   * or the tile the pointer last came from.
+   */
+  getFocusedTile(): TileId | undefined {
+    const group = this.model.interaction.group;
+    if (group && group.boundaries.length > 0) {
+      const focusedBoundary = group.boundaries[group.focusedIndex];
+      if (focusedBoundary) {
+        return focusedBoundary.refTileId;
+      }
+    }
+    return this.model.interaction.fromTileId;
   }
 }

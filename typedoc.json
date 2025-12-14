@@ -8,7 +8,7 @@
     "packages/devtools/src/index.ts"
   ],
   "out": "docs/api",
-  "name": "Dashboarding API Reference",
+  "name": "Pebbledash API Reference",
   "readme": "README.md",
   "includeVersion": true,
   "excludePrivate": true,
@@ -22,11 +22,13 @@
     "notDocumented": false
   },
   "navigationLinks": {
-    "GitHub": "https://github.com/dashboarding/dashboarding",
+    "GitHub": "https://github.com/pebbledash/pebbledash",
     "Documentation": "/docs"
   },
   "categorizeByGroup": true,
   "categoryOrder": ["Core", "Renderer", "React", "Web Component", "Devtools", "*"],
   "sort": ["alphabetical", "source-order"],
-  "plugin": ["typedoc-plugin-markdown"]
+  "plugin": ["typedoc-plugin-markdown"],
+  "treatWarningsAsErrors": false,
+  "logLevel": "Warn"
 }

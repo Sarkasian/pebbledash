@@ -10,9 +10,41 @@
         font:
           14px/1.4 system-ui,
           sans-serif;
+        display: flex;
+        align-items: center;
       }
       #controls label {
         margin-right: 12px;
+      }
+      #controls button {
+        padding: 4px 10px;
+        margin: 0 4px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: #fff;
+        cursor: pointer;
+        font: inherit;
+      }
+      #controls button:hover:not(:disabled) {
+        background: #f0f0f0;
+        border-color: #999;
+      }
+      #controls button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      #controls button:active:not(:disabled) {
+        background: #e0e0e0;
+      }
+      kbd {
+        display: inline-block;
+        padding: 2px 6px;
+        font-family: monospace;
+        font-size: 12px;
+        background: #f4f4f4;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        box-shadow: 0 1px 0 #bbb;
       }
       #dash {
         width: 100vw;
@@ -179,6 +211,10 @@
     <div id="controls">
       <label><input type="radio" name="mode" value="insert" checked /> Insertion mode</label>
       <label><input type="radio" name="mode" value="resize" /> Resize mode</label>
+      <span style="margin-left: 24px; border-left: 1px solid #ccc; padding-left: 12px;">
+        <button id="undo-btn" disabled title="Undo (Ctrl+Z)">↶ Undo</button>
+        <button id="redo-btn" disabled title="Redo (Ctrl+Shift+Z)">↷ Redo</button>
+      </span>
     </div>
     <div id="dash"></div>
     <script type="module">
@@ -275,14 +311,36 @@
         return undefined;
       })();
 
+      // Get undo/redo button references
+      const undoBtn = document.getElementById('undo-btn');
+      const redoBtn = document.getElementById('redo-btn');
+
       const dash = new BaseDashboard({
         container: '#dash',
         defaults: { minTile: { width: 5, height: 5 }, epsilon: 1e-6 },
-        features: { overlays: true, keyboard: true, startMode: 'insert' },
+        features: { 
+          overlays: true, 
+          keyboard: true, 
+          startMode: 'insert',
+          keyboardUndoRedo: true, // Enable Ctrl+Z / Ctrl+Shift+Z
+        },
         initialLayout: preload,
         widgets, // Pass the widget registry
+        // Update undo/redo button states when history changes
+        onHistoryChange: (canUndo, canRedo) => {
+          undoBtn.disabled = !canUndo;
+          redoBtn.disabled = !canRedo;
+        },
       });
       await dash.mount();
+
+      // Wire up undo/redo button click handlers
+      undoBtn.addEventListener('click', () => {
+        dash.getModel().undo();
+      });
+      redoBtn.addEventListener('click', () => {
+        dash.getModel().redo();
+      });
 
       // Store reference for widgets to access
       dashboardInstance = dash;
@@ -305,6 +363,10 @@
     <p>
       Also see <a href="/web-component.html">Web Component</a> and
       <a href="/react.html">React</a> demos.
+    </p>
+    <p>
+      <strong>Undo/Redo:</strong> Use the buttons above or keyboard shortcuts: 
+      <kbd>Ctrl+Z</kbd> to undo, <kbd>Ctrl+Shift+Z</kbd> or <kbd>Ctrl+Y</kbd> to redo.
     </p>
     <p>
       <strong>Widget System:</strong> Tiles use the <code>default</code> widget by default. Set

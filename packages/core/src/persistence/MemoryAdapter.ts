@@ -1,11 +1,11 @@
-import type { PersistenceAdapter, SnapshotV1 } from './PersistenceAdapter.js';
+import type { PersistenceAdapter, Snapshot } from './PersistenceAdapter.js';
 
 export class MemoryAdapter implements PersistenceAdapter {
-  private readonly store = new Map<string, SnapshotV1>();
-  async save(key: string, snapshot: SnapshotV1): Promise<void> {
+  private readonly store = new Map<string, Snapshot>();
+  async save(key: string, snapshot: Snapshot): Promise<void> {
     this.store.set(key, snapshot);
   }
-  async load(key: string): Promise<SnapshotV1 | null> {
+  async load(key: string): Promise<Snapshot | null> {
     return this.store.get(key) ?? null;
   }
   async list(prefix?: string): Promise<string[]> {

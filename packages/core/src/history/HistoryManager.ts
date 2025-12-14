@@ -2,15 +2,24 @@ import { DashboardState } from '../entities/DashboardState.js';
 
 export interface HistoryOptions {
   limit?: number;
+  /** Optional callback fired after a state is recorded */
+  onRecord?: (state: DashboardState, canUndo: boolean, canRedo: boolean) => void;
 }
 
 export class HistoryManager {
   private readonly limit: number;
   private stack: DashboardState[] = [];
   private index = -1;
+  private onRecord?: (state: DashboardState, canUndo: boolean, canRedo: boolean) => void;
 
   constructor(opts?: HistoryOptions) {
     this.limit = opts?.limit ?? 100;
+    this.onRecord = opts?.onRecord;
+  }
+
+  /** Set the onRecord callback (useful for late binding) */
+  setOnRecord(cb: (state: DashboardState, canUndo: boolean, canRedo: boolean) => void): void {
+    this.onRecord = cb;
   }
 
   clear() {
@@ -28,6 +37,11 @@ export class HistoryManager {
       this.stack.shift();
     } else {
       this.index++;
+    }
+    
+    // Fire callback if set
+    if (this.onRecord) {
+      this.onRecord(state, this.canUndo(), this.canRedo());
     }
   }
 

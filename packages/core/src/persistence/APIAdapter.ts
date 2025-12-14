@@ -1,4 +1,4 @@
-import type { PersistenceAdapter, SnapshotV1 } from './PersistenceAdapter.js';
+import type { PersistenceAdapter, Snapshot } from './PersistenceAdapter.js';
 
 export class APIAdapter implements PersistenceAdapter {
   constructor(
@@ -6,7 +6,7 @@ export class APIAdapter implements PersistenceAdapter {
     private readonly headers?: Record<string, string>,
   ) {}
 
-  async save(key: string, snapshot: SnapshotV1): Promise<void> {
+  async save(key: string, snapshot: Snapshot): Promise<void> {
     const res = await fetch(this.url(key), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...(this.headers ?? {}) },
@@ -14,11 +14,11 @@ export class APIAdapter implements PersistenceAdapter {
     });
     if (!res.ok) throw new Error(`API save failed: ${res.status}`);
   }
-  async load(key: string): Promise<SnapshotV1 | null> {
+  async load(key: string): Promise<Snapshot | null> {
     const res = await fetch(this.url(key), { headers: this.headers });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`API load failed: ${res.status}`);
-    return (await res.json()) as SnapshotV1;
+    return (await res.json()) as Snapshot;
   }
   async list(prefix?: string): Promise<string[]> {
     const url = this.baseUrl + (prefix ? `?prefix=${encodeURIComponent(prefix)}` : '');

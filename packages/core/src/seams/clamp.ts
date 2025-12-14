@@ -1,15 +1,54 @@
+/**
+ * Seam delta clamping operations.
+ * Calculates valid movement ranges for seam-based resizing.
+ * @module seams/clamp
+ */
+
 import { makeSeamId } from '../entities/Seam.js';
 import type { DashboardState } from '../entities/DashboardState.js';
 import type { Tile } from '../entities/Tile.js';
 import { coversSpan } from './coverage.js';
 
+/**
+ * Result of clamping a seam delta to valid bounds.
+ */
 export interface SeamClampResult {
+  /** The delta value after clamping to valid range */
   clampedDelta: number;
+  /** Minimum allowed delta (negative = move left/up) */
   min: number;
+  /** Maximum allowed delta (positive = move right/down) */
   max: number;
+  /** Whether the seam chain covers its full span */
   chainCovered: boolean;
 }
 
+/**
+ * Clamp a seam movement delta to ensure tiles maintain minimum sizes.
+ * 
+ * For a vertical seam (divides tiles horizontally):
+ * - Positive delta moves seam right (shrinks right tiles, expands left)
+ * - Negative delta moves seam left (shrinks left tiles, expands right)
+ * 
+ * For a horizontal seam (divides tiles vertically):
+ * - Positive delta moves seam down (shrinks bottom tiles, expands top)
+ * - Negative delta moves seam up (shrinks top tiles, expands bottom)
+ * 
+ * @param state - The current dashboard state
+ * @param seamId - The seam identifier
+ * @param delta - The requested movement delta (in percentage)
+ * @param opts - Optional configuration
+ * @param opts.minTile - Minimum tile dimensions
+ * @param opts.epsilon - Tolerance for floating-point comparisons
+ * @param opts.span - Optional span to restrict which tiles are considered
+ * @returns The clamped result with min/max bounds
+ * 
+ * @example
+ * ```ts
+ * const result = clampSeamDelta(state, 'v:50', 10, { minTile: { width: 10, height: 10 } });
+ * // result.clampedDelta will be at most what preserves minimum tile widths
+ * ```
+ */
 export function clampSeamDelta(
   state: DashboardState,
   seamId: string,
@@ -67,6 +106,14 @@ export function clampSeamDelta(
   }
 }
 
+/**
+ * Get or create a seam ID for a given edge position.
+ * 
+ * @param state - The dashboard state
+ * @param orientation - 'vertical' or 'horizontal'
+ * @param coord - The coordinate value (x for vertical, y for horizontal)
+ * @returns The seam ID string
+ */
 export function seamIdForEdge(
   state: DashboardState,
   orientation: 'vertical' | 'horizontal',
@@ -77,21 +124,42 @@ export function seamIdForEdge(
   return id;
 }
 
+/**
+ * Find tiles whose right edge touches the seam at seamX.
+ * @internal
+ */
 function touchingRight(list: Tile[], seamX: number, eps: number): Tile[] {
   return list.filter((t) => Math.abs(t.x + t.width - seamX) <= eps);
 }
+
+/**
+ * Find tiles whose left edge touches the seam at seamX.
+ * @internal
+ */
 function touchingLeft(list: Tile[], seamX: number, eps: number): Tile[] {
   return list.filter((t) => Math.abs(t.x - seamX) <= eps);
 }
+
+/**
+ * Find tiles whose bottom edge touches the seam at seamY.
+ * @internal
+ */
 function touchingBottom(list: Tile[], seamY: number, eps: number): Tile[] {
   return list.filter((t) => Math.abs(t.y + t.height - seamY) <= eps);
 }
+
+/**
+ * Find tiles whose top edge touches the seam at seamY.
+ * @internal
+ */
 function touchingTop(list: Tile[], seamY: number, eps: number): Tile[] {
   return list.filter((t) => Math.abs(t.y - seamY) <= eps);
 }
 
-// coverage helpers centralized in seams/coverage.ts
-
+/**
+ * Check if two ranges overlap within a tolerance.
+ * @internal
+ */
 function overlaps(a: [number, number], b: [number, number], eps: number): boolean {
   const [a0, a1] = a[0] <= a[1] ? a : [a[1], a[0]];
   const [b0, b1] = b[0] <= b[1] ? b : [b[1], b[0]];

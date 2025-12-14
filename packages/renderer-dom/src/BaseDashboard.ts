@@ -1,4 +1,4 @@
-import type { DashboardModel, SnapshotV1, PartialExtendedConfig, TileId } from '@pebbledash/core';
+import type { DashboardModel, SnapshotV1, PartialExtendedConfig, TileId, ResizeEdge } from '@pebbledash/core';
 import { InsertionNavigator } from '@pebbledash/core/internal';
 import {
   dedupeEdges,
@@ -10,8 +10,6 @@ import { startResizeSession } from './resizeSession.js';
 import { ConfigPreviewOverlay } from './ConfigPreviewOverlay.js';
 import type { WidgetRegistry } from './widgets.js';
 import type { DomRenderer } from './index.js';
-
-type ResizeEdge = 'left' | 'right' | 'top' | 'bottom';
 
 export interface BaseDashboardOptions {
   container: HTMLElement | string;
@@ -33,9 +31,61 @@ export interface BaseDashboardOptions {
           meta?: Record<string, unknown>;
         }>;
       };
-  features?: { overlays?: boolean; keyboard?: boolean; startMode?: 'insert' | 'resize' };
+  features?: {
+    overlays?: boolean;
+    keyboard?: boolean;
+    startMode?: 'insert' | 'resize';
+    /** Enable Ctrl+Z / Ctrl+Shift+Z keyboard shortcuts (default: false) */
+    keyboardUndoRedo?: boolean;
+    /** Enable Delete/Backspace to delete hovered tile (default: false) */
+    keyboardDelete?: boolean;
+  };
   /** Registry of widget factories keyed by widget type */
   widgets?: WidgetRegistry;
+
+  // === Tile Interaction Callbacks ===
+  /** Called when a tile is clicked (not on resize edges or during drag) */
+  onTileClick?: (tileId: TileId, event: MouseEvent) => void;
+  /** Called when a tile is double-clicked */
+  onTileDoubleClick?: (tileId: TileId, event: MouseEvent) => void;
+  /** Called when pointer enters/leaves a tile */
+  onTileHover?: (tileId: TileId, entering: boolean, event: MouseEvent) => void;
+  /** Called when a tile receives/loses focus */
+  onTileFocus?: (tileId: TileId, focused: boolean) => void;
+  /** Called on right-click for custom context menus */
+  onTileContextMenu?: (tileId: TileId, event: MouseEvent) => void;
+
+  // === History Callbacks ===
+  /** Called when undo/redo availability changes */
+  onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
+
+  // === Mode Callbacks ===
+  /** Called when interaction mode changes */
+  onModeChange?: (newMode: 'insert' | 'resize', previousMode: 'insert' | 'resize') => void;
+
+  // === Container Callbacks ===
+  /** Called when container is resized */
+  onContainerResize?: (width: number, height: number) => void;
+
+  // === Resize Operation Callbacks ===
+  /** Called when resize drag starts */
+  onResizeStart?: (tileId: TileId, edge: ResizeEdge) => void;
+  /** Called during resize with live delta (for preview UI) */
+  onResizeMove?: (tileId: TileId, edge: ResizeEdge, delta: number, clamped: boolean) => void;
+  /** Called when resize drag ends */
+  onResizeEnd?: (tileId: TileId, edge: ResizeEdge, committed: boolean) => void;
+
+  // === Resize Configuration ===
+  resizeConfig?: {
+    /** Minimum pixel range for resize to be enabled (default: 2) */
+    minResizeRangePx?: number;
+    /** Deadband for clamp feedback in pixels (default: 1) */
+    clampDeadbandPx?: number;
+    /** Minimum pixels to drag before resize starts (default: 3) */
+    dragThreshold?: number;
+    /** When using Shift+drag redistribute, shrink all tiles equally (default: false) */
+    redistributeEqually?: boolean;
+  };
 }
 
 export class BaseDashboard {
@@ -50,6 +100,8 @@ export class BaseDashboard {
   private dragActive = false;
   private liveRegion?: HTMLElement;
   private configPreviewOverlay?: ConfigPreviewOverlay;
+  private containerResizeObserver?: ResizeObserver;
+  private historyUnsubscribe?: () => void;
 
   constructor(opts: BaseDashboardOptions) {
     this.opts = opts;
@@ -63,21 +115,12 @@ export class BaseDashboard {
         : this.opts.container;
     if (!this.container) throw new Error('BaseDashboard: container not found');
     // Create ARIA live region for accessibility announcements
+    // Styles are defined in styles.ts (.ud-live-region class)
     this.liveRegion = document.createElement('div');
     this.liveRegion.setAttribute('role', 'status');
     this.liveRegion.setAttribute('aria-live', 'polite');
     this.liveRegion.setAttribute('aria-atomic', 'true');
     this.liveRegion.className = 'ud-live-region';
-    // Visually hidden but accessible to screen readers
-    this.liveRegion.style.position = 'absolute';
-    this.liveRegion.style.width = '1px';
-    this.liveRegion.style.height = '1px';
-    this.liveRegion.style.padding = '0';
-    this.liveRegion.style.margin = '-1px';
-    this.liveRegion.style.overflow = 'hidden';
-    this.liveRegion.style.clip = 'rect(0, 0, 0, 0)';
-    this.liveRegion.style.whiteSpace = 'nowrap';
-    this.liveRegion.style.border = '0';
     this.container.appendChild(this.liveRegion);
     // Create model with provided defaults
     const { DashboardModel: CoreModel } = await import('@pebbledash/core');
@@ -103,6 +146,11 @@ export class BaseDashboard {
     this.renderer = new DomRenderer({
       container: this.container,
       widgets: this.opts.widgets,
+      onTileClick: this.opts.onTileClick,
+      onTileDoubleClick: this.opts.onTileDoubleClick,
+      onTileHover: this.opts.onTileHover,
+      onTileFocus: this.opts.onTileFocus,
+      onTileContextMenu: this.opts.onTileContextMenu,
     });
     this.renderer.mount(this.model);
     // Subscribe to model changes to refresh
@@ -123,11 +171,36 @@ export class BaseDashboard {
       this.attachTileHoverTracker();
       this.buildOverlays();
     }
+
+    // Set up container resize observer if callback provided
+    if (this.opts.onContainerResize && typeof ResizeObserver !== 'undefined') {
+      this.containerResizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          this.opts.onContainerResize!(width, height);
+        }
+      });
+      this.containerResizeObserver.observe(this.container);
+    }
+
+    // Set up history change subscription
+    if (this.opts.onHistoryChange) {
+      // Fire initial state
+      this.opts.onHistoryChange(this.model.canUndo(), this.model.canRedo());
+      
+      // Subscribe to model changes to track history state
+      this.historyUnsubscribe = this.model.subscribe(() => {
+        this.opts.onHistoryChange!(this.model.canUndo(), this.model.canRedo());
+      });
+    }
   }
 
   unmount(): void {
     this.clearOverlays();
     if (this.unsubscribe) this.unsubscribe();
+    if (this.historyUnsubscribe) this.historyUnsubscribe();
+    this.containerResizeObserver?.disconnect();
+    this.containerResizeObserver = undefined;
     this.renderer?.unmount?.();
     this.navigator = undefined;
     this.liveRegion?.remove();
@@ -135,9 +208,11 @@ export class BaseDashboard {
   }
 
   /**
-   * Announce a message to screen readers via the ARIA live region
+   * Announce a message to screen readers via the ARIA live region.
+   * Consumers can use this to announce custom messages for accessibility.
+   * @param message - The message to announce
    */
-  private announce(message: string): void {
+  announce(message: string): void {
     if (this.liveRegion) {
       this.liveRegion.textContent = message;
     }
@@ -148,11 +223,16 @@ export class BaseDashboard {
   }
 
   setMode(mode: 'insert' | 'resize'): void {
+    const previousMode = this.mode;
     this.mode = mode;
     if (this.opts.features?.overlays) {
       this.container.classList.toggle('mode-insert', mode === 'insert');
       this.container.classList.toggle('mode-resize', mode === 'resize');
       this.buildOverlays();
+    }
+    // Fire mode change callback if mode actually changed
+    if (previousMode !== mode && this.opts.onModeChange) {
+      this.opts.onModeChange(mode, previousMode);
     }
   }
 
@@ -167,7 +247,7 @@ export class BaseDashboard {
    */
   startConfigPreview(config: PartialExtendedConfig): void {
     if (!this.configPreviewOverlay) {
-      this.configPreviewOverlay = new ConfigPreviewOverlay(this.container, this.model);
+      this.configPreviewOverlay = new ConfigPreviewOverlay(this.container, this.model, {}, 'ud');
     }
     this.configPreviewOverlay.startPreview(config);
     this.container.classList.add('config-preview-active');
@@ -234,6 +314,43 @@ export class BaseDashboard {
   private attachKeyboard(): void {
     if (!this.opts.features?.keyboard) return;
     this.container.addEventListener('keydown', (e: KeyboardEvent) => {
+      // Handle undo/redo shortcuts if enabled
+      if (this.opts.features?.keyboardUndoRedo) {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+        
+        if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          this.model.undo();
+          return;
+        }
+        if (cmdOrCtrl && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) {
+          e.preventDefault();
+          this.model.redo();
+          return;
+        }
+        // Also support Ctrl+Y for redo on Windows
+        if (!isMac && e.ctrlKey && e.key === 'y') {
+          e.preventDefault();
+          this.model.redo();
+          return;
+        }
+      }
+
+      // Handle Delete/Backspace for tile deletion if enabled
+      if (this.opts.features?.keyboardDelete && (e.key === 'Delete' || e.key === 'Backspace')) {
+        // Get the focused tile from the navigator or from last hovered tile
+        const focusedTileId = this.navigator?.getFocusedTile?.() ?? this.lastHoveredTileId;
+        if (focusedTileId) {
+          e.preventDefault();
+          // Don't delete if only one tile remains
+          if (this.model.getState().tiles.size > 1) {
+            void this.model.deleteTile(focusedTileId);
+          }
+          return;
+        }
+      }
+
       if (!this.navigator) return;
       if (e.key === 'Tab') {
         e.preventDefault();
@@ -244,16 +361,28 @@ export class BaseDashboard {
       }
     });
   }
+  
+  /** Track last hovered tile for keyboard operations */
+  private lastHoveredTileId: TileId | null = null;
 
   private attachTileHoverTracker(): void {
     // Track the tile the pointer is coming from to improve boundary selection heuristics
+    // and to enable keyboard operations on the hovered tile
     this.container.addEventListener('mousemove', (e: Event) => {
       const t = e.target as Element | null;
       const tileEl = t && 'closest' in t ? (t.closest('.ud-tile') as HTMLElement | null) : null;
       const id = tileEl?.dataset?.tileId;
-      if (id && this.navigator) {
-        this.navigator.pointerEnterTile(id as TileId);
+      if (id) {
+        this.lastHoveredTileId = id as TileId;
+        if (this.navigator) {
+          this.navigator.pointerEnterTile(id as TileId);
+        }
       }
+    });
+    
+    // Clear hover when leaving the container
+    this.container.addEventListener('mouseleave', () => {
+      this.lastHoveredTileId = null;
     });
   }
 
@@ -304,7 +433,7 @@ export class BaseDashboard {
       el.style.top = `${edgeData.y}%`;
       if (edgeData.orientation === 'vertical') el.style.height = `${edgeData.height}%`;
       else el.style.width = `${edgeData.width}%`;
-      // Determine disabled state in resize mode: not resizable or too-small range
+      // Determine disabled state in resize mode: not resizable, too-small range, or locked
       if (this.mode === 'resize') {
         const rect = this.container.getBoundingClientRect();
         const isVertical = edgeData.side === 'left' || edgeData.side === 'right';
@@ -317,9 +446,18 @@ export class BaseDashboard {
             });
         const allowedPct = Math.max(0, r.max - r.min);
         const allowedPx = (isVertical ? rect.width : rect.height) * (allowedPct / 100);
-        const MIN_RANGE_PX = 2;
-        if (edgeData.canResize === false || allowedPx <= MIN_RANGE_PX) {
+        const MIN_RANGE_PX = this.opts.resizeConfig?.minResizeRangePx ?? 2;
+        
+        // Check if edge is locked via tile constraints
+        const configManager = this.model.getConfigManager();
+        const constraints = configManager.getTileConstraints(edgeData.tileId);
+        const isLocked = constraints?.lockedZones?.includes(edgeData.side as 'top' | 'bottom' | 'left' | 'right');
+        
+        if (edgeData.canResize === false || allowedPx <= MIN_RANGE_PX || isLocked) {
           el.classList.add('disabled');
+        }
+        if (isLocked) {
+          el.classList.add('locked');
         }
       }
       if (edgeData.seamId) {
@@ -350,7 +488,7 @@ export class BaseDashboard {
           const rect = this.container.getBoundingClientRect();
           const xPct = (((evt as MouseEvent).clientX - rect.left) / rect.width) * 100;
           const yPct = (((evt as MouseEvent).clientY - rect.top) / rect.height) * 100;
-          this.navigator!.pointerEnterEdge(edgeData.id, { xPct, yPct });
+          await this.navigator!.pointerEnterEdge(edgeData.id, { xPct, yPct });
           await this.navigator!.commit();
         });
       } else if (this.mode === 'resize') {
@@ -365,17 +503,25 @@ export class BaseDashboard {
         (eDown: PointerEvent) => {
           if (this.mode !== 'resize') return;
           if ((el as HTMLElement).classList.contains('disabled')) return;
+          
+            // Check if this edge is locked via tile constraints
+            const configManager = this.model.getConfigManager();
+            const constraints = configManager.getTileConstraints(edgeData.tileId);
+            if (constraints?.lockedZones?.includes(edgeData.side as 'top' | 'bottom' | 'left' | 'right')) {
+              return; // Edge is locked, don't allow resize
+            }
+          
           eDown.preventDefault();
           const rect = this.container.getBoundingClientRect();
           const isVertical = edgeData.side === 'left' || edgeData.side === 'right';
-          const MIN_RANGE_PX = 2;
+          const minRangePx = this.opts.resizeConfig?.minResizeRangePx ?? 2;
           const clampInfo = this.model.clampResize(edgeData.tileId, {
             edge: edgeData.side as ResizeEdge,
             delta: 0,
           });
           const allowedPct = Math.max(0, clampInfo.max - clampInfo.min);
           const allowedPx = (isVertical ? rect.width : rect.height) * (allowedPct / 100);
-          if (allowedPx <= MIN_RANGE_PX) return;
+          if (allowedPx <= minRangePx) return;
           startResizeSession(
             {
               model: this.model,
@@ -388,13 +534,30 @@ export class BaseDashboard {
               onSessionStart: () => {
                 this.container.classList.add('dragging');
                 this.dragActive = true;
+                this.renderer.setDragActive(true);
+                // Fire resize start callback
+                this.opts.onResizeStart?.(edgeData.tileId, edgeData.side as ResizeEdge);
               },
-              onSessionEnd: () => {
+              onSessionEnd: (committed?: boolean) => {
                 this.container.classList.remove('dragging');
                 this.dragActive = false;
+                this.renderer.setDragActive(false);
+                // Fire resize end callback
+                this.opts.onResizeEnd?.(edgeData.tileId, edgeData.side as ResizeEdge, committed ?? false);
+              },
+              onResizeMove: (delta: number, clamped: boolean) => {
+                // Fire resize move callback
+                this.opts.onResizeMove?.(edgeData.tileId, edgeData.side as ResizeEdge, delta, clamped);
               },
               clearBoundaryOverlays: () => this.clearBoundaryOverlays(),
               rebuildOverlays: () => this.buildOverlays(),
+              resizeConfig: this.opts.resizeConfig,
+              redistributeConfig: {
+                enabled: true,
+                minWidth: this.opts.defaults?.minTile?.width ?? 10,
+                minHeight: this.opts.defaults?.minTile?.height ?? 10,
+                redistributeEqually: this.opts.resizeConfig?.redistributeEqually ?? false,
+              },
             },
             eDown.pointerId,
           );

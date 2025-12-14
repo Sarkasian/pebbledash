@@ -115,6 +115,15 @@ export class DashboardModel implements ModelContext {
     this.strategies.registerDelete(new HeuristicDeleteStrategy());
     this.strategies.registerResize(new LinearResizeStrategy());
     this.registerDefaultGraphs();
+    
+    // Wire up history record callback to emit lifecycle event
+    this.history.setOnRecord((state, canUndo, canRedo) => {
+      void this.lifecycle.emit('history:record', {
+        state,
+        canUndo,
+        canRedo,
+      });
+    });
   }
 
   getConfig(): CoreConfig {
@@ -268,6 +277,18 @@ export class DashboardModel implements ModelContext {
     if (opts?.layout) {
       const tiles = opts.layout.tiles.map((t) => new Tile(t as any));
       this.state = new DashboardState({ tiles });
+      
+      // Update idSeq to avoid collisions with existing tile IDs
+      let maxId = 0;
+      for (const t of opts.layout.tiles) {
+        const match = String(t.id).match(/^tile-(\d+)$/);
+        if (match && match[1]) {
+          const num = parseInt(match[1], 10);
+          if (num > maxId) maxId = num;
+        }
+      }
+      this.idSeq = maxId + 1;
+      
       this.history.clear();
       this.history.record(this.state);
       this.notify('initialize');
@@ -293,12 +314,36 @@ export class DashboardModel implements ModelContext {
   /**
    * Create a serializable snapshot of the current state.
    * Use with `restoreSnapshot()` for persistence.
-   * @returns A snapshot object that can be serialized to JSON
+   * @param options - Optional settings for snapshot creation
+   * @param options.includeSettings - Include dashboard settings in snapshot (creates V2)
+   * @param options.includeConstraints - Include per-tile constraints in snapshot (creates V2)
+   * @returns A snapshot object that can be serialized to JSON (V1 or V2 based on options)
    */
-  createSnapshot() {
+  createSnapshot(options?: { includeSettings?: boolean; includeConstraints?: boolean }) {
+    const tiles = this.state.toArray();
+    
+    // If no V2 features requested, return V1 for backwards compatibility
+    if (!options?.includeSettings && !options?.includeConstraints) {
+      return {
+        version: 1 as const,
+        tiles: tiles.map(({ id, x, y, width, height, locked, meta }) => ({
+          id,
+          x,
+          y,
+          width,
+          height,
+          locked,
+          meta,
+        })),
+      };
+    }
+
+    // Create V2 snapshot
+    const tileConstraints = this._configManager?.getAllTileConstraints();
+    
     return {
-      version: 1 as const,
-      tiles: this.state.toArray().map(({ id, x, y, width, height, locked, meta }) => ({
+      version: 2 as const,
+      tiles: tiles.map(({ id, x, y, width, height, locked, meta }) => ({
         id,
         x,
         y,
@@ -306,21 +351,112 @@ export class DashboardModel implements ModelContext {
         height,
         locked,
         meta,
+        ...(options.includeConstraints && tileConstraints?.get(id)
+          ? { constraints: tileConstraints.get(id) }
+          : {}),
       })),
+      ...(options.includeSettings && this._configManager
+        ? { settings: this._configManager.getConfig() }
+        : {}),
     };
   }
 
   /**
    * Restore state from a previously created snapshot.
+   * Auto-detects V1 vs V2 format.
    * @param s - The snapshot to restore
    */
   restoreSnapshot(s: {
-    version: 1;
-    tiles: Array<Pick<Tile, 'id' | 'x' | 'y' | 'width' | 'height' | 'locked' | 'meta'>>;
+    version: 1 | 2;
+    tiles: Array<Pick<Tile, 'id' | 'x' | 'y' | 'width' | 'height' | 'locked' | 'meta'> & { constraints?: any }>;
+    settings?: any;
   }): void {
     const tiles = s.tiles.map((t) => new Tile(t as any));
     this.state = new DashboardState({ tiles });
+    
+    // Update idSeq to avoid collisions with existing tile IDs
+    let maxId = 0;
+    for (const t of s.tiles) {
+      const match = String(t.id).match(/^tile-(\d+)$/);
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10);
+        if (num > maxId) maxId = num;
+      }
+    }
+    this.idSeq = maxId + 1;
+    
+    // Handle V2 features
+    if (s.version === 2) {
+      // Restore per-tile constraints if present
+      if (this._configManager) {
+        for (const t of s.tiles) {
+          if (t.constraints) {
+            this._configManager.setTileConstraints(t.id, t.constraints);
+          }
+        }
+        
+        // Restore settings if present
+        if (s.settings) {
+          void this._configManager.setConfig(s.settings);
+        }
+      }
+    }
+    
     this.notify('restore');
+  }
+
+  /**
+   * Update a tile's properties (meta, locked, constraints).
+   * This method records the change in history for undo/redo support.
+   * 
+   * @param tileId - ID of the tile to update
+   * @param patch - Properties to update (meta, locked, constraints)
+   * @returns The updated tile
+   * @throws Error if tile is not found
+   * 
+   * @example
+   * ```typescript
+   * // Update tile metadata
+   * await model.updateTile(tileId, {
+   *   meta: { widgetType: 'markdown', contentRef: 'notes/todo.md' }
+   * });
+   * 
+   * // Lock a tile
+   * await model.updateTile(tileId, { locked: true });
+   * ```
+   */
+  async updateTile(
+    tileId: TileId,
+    patch: Partial<Pick<Tile, 'meta' | 'locked' | 'constraints'>>,
+  ): Promise<Tile> {
+    const tile = this.state.tiles.get(tileId);
+    if (!tile) {
+      throw new Error(`Tile ${tileId} not found`);
+    }
+
+    // Create updated tile
+    const updatedTile = tile.with(patch);
+
+    // Create new state with the updated tile
+    const newTiles = Array.from(this.state.tiles.values()).map((t) =>
+      t.id === tileId ? updatedTile : t,
+    );
+    this.state = new DashboardState({ tiles: newTiles, groups: this.state.groups });
+
+    // Record in history
+    this.history.record(this.state);
+
+    // Notify listeners
+    this.notify('updateTile');
+
+    // Emit lifecycle event
+    void this.lifecycle.emit('tile:updated', {
+      tileId,
+      patch,
+      tile: updatedTile,
+    });
+
+    return updatedTile;
   }
 
   /**
@@ -369,13 +505,22 @@ export class DashboardModel implements ModelContext {
    * @param p - Resize parameters
    * @param p.edge - Which edge to move ('left', 'right', 'top', 'bottom')
    * @param p.delta - Amount to move the edge (positive = expand, negative = shrink)
+   * @param p.skipHistory - If true, don't record this resize in history (for batched drag operations)
    * @returns Decision result with validation status
    */
   async resizeTile(
     tileId: TileId,
-    p: { edge: 'left' | 'right' | 'top' | 'bottom'; delta: number },
+    p: { edge: 'left' | 'right' | 'top' | 'bottom'; delta: number; skipHistory?: boolean },
   ): Promise<DecisionResult> {
     return resizeTileOp(this, tileId, p);
+  }
+
+  /**
+   * Record the current state in history.
+   * Call this after a series of skipHistory operations to create a single undo point.
+   */
+  recordHistory(): void {
+    this.history.record(this.state);
   }
 
   /**
@@ -487,11 +632,23 @@ export class DashboardModel implements ModelContext {
     if (!this.history.canUndo()) return;
     this.state = this.history.undo();
     this.notify('undo');
+    // Emit lifecycle event
+    void this.lifecycle.emit('history:undo', {
+      state: this.state,
+      canUndo: this.history.canUndo(),
+      canRedo: this.history.canRedo(),
+    });
   }
   redo(): void {
     if (!this.history.canRedo()) return;
     this.state = this.history.redo();
     this.notify('redo');
+    // Emit lifecycle event
+    void this.lifecycle.emit('history:redo', {
+      state: this.state,
+      canUndo: this.history.canUndo(),
+      canRedo: this.history.canRedo(),
+    });
   }
   canUndo(): boolean {
     return this.history.canUndo();
