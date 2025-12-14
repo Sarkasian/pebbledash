@@ -1,46 +1,46 @@
-import { useEffect, useRef } from 'react';
-import type { DashboardModel } from '@pebbledash/core';
-import type { DomRenderer, WidgetRegistry } from '@pebbledash/renderer-dom';
+/**
+ * @pebbledash/react - React bindings for pebbledash dashboards
+ * 
+ * @packageDocumentation
+ */
 
-export interface DashboardProps {
-  model: DashboardModel;
-  className?: string;
-  style?: React.CSSProperties;
-  /** Registry of widget factories keyed by widget type */
-  widgets?: WidgetRegistry;
-}
+// Main component
+export { Dashboard } from './Dashboard.js';
 
-export function Dashboard({ model, className, style, widgets }: DashboardProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const widgetsRef = useRef(widgets);
+// Context and Provider
+export { 
+  DashboardProvider,
+  DashboardContext,
+  useDashboardContext,
+  useDashboardContextOptional,
+} from './context/DashboardContext.js';
 
-  // Keep widgets ref updated for stable reference in effect
-  useEffect(() => {
-    widgetsRef.current = widgets;
-  }, [widgets]);
+// Hooks
+export { useDashboard } from './hooks/useDashboard.js';
+export { useTile, useTiles } from './hooks/useTile.js';
 
-  useEffect(() => {
-    if (!ref.current) return;
-    let disposed = false;
-    let renderer: DomRenderer | undefined;
-    (async () => {
-      const { DomRenderer: RendererClass } = await import('@pebbledash/renderer-dom');
-      if (disposed) return;
-      renderer = new RendererClass({
-        container: ref.current!,
-        widgets: widgetsRef.current,
-      });
-      renderer.mount(model);
-    })();
-    return () => {
-      disposed = true;
-      renderer?.unmount();
-    };
-  }, [model]);
+// Types
+export type {
+  DashboardProps,
+  DashboardApi,
+  DashboardState,
+  DashboardContextValue,
+  DashboardDefaults,
+  DashboardFeatures,
+  InitialLayout,
+  ResizeConfig,
+  TileState,
+} from './types.js';
 
-  const mergedStyle = { width: '100%', height: '100%', ...(style || {}) } as React.CSSProperties;
-  return <div ref={ref} className={className} style={mergedStyle} />;
-}
+// Re-export core types for convenience
+export type { 
+  TileId, 
+  Tile, 
+  ResizeEdge,
+  SnapshotV1,
+  PartialExtendedConfig,
+  DashboardModel,
+} from '@pebbledash/core';
 
 // Re-export widget types for convenience
 export type {
@@ -48,4 +48,5 @@ export type {
   WidgetFactory,
   WidgetRegistry,
   WidgetContext,
+  OverlayPosition,
 } from '@pebbledash/renderer-dom';

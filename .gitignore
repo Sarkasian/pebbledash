@@ -1,6 +1,8 @@
 node_modules/
 .pnpm-store/
 dist/
+# Ensure package-level dist folders are ignored
+packages/*/dist/
 coverage/
 .turbo/
 .DS_Store
@@ -9,5 +11,8 @@ playwright-report/
 test-results/
 .env*
 .cursor
+
+# TypeDoc generated media (redundant copies of READMEs)
+docs/api/_media/
 
 

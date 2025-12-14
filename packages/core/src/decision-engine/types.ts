@@ -1,5 +1,6 @@
 import type { DashboardState } from '../entities/DashboardState.js';
 import type { CoreConfig, InteractionConfig } from '../model/types.js';
+import type { TileId } from '../index.js';
 
 export type Operation =
   | 'insert'
@@ -47,4 +48,6 @@ export interface Violation {
 export interface DecisionResult {
   valid: boolean;
   violations: Violation[];
+  /** ID of newly created tile (for split/insert operations) */
+  newTileId?: TileId;
 }

@@ -1,0 +1,25 @@
+[**Pebbledash API Reference v0.0.0**](../../../README.md)
+
+***
+
+[Pebbledash API Reference](../../../modules.md) / [renderer-dom/src](../README.md) / getBaseStyles
+
+# Function: getBaseStyles()
+
+> **getBaseStyles**(`rootClass`): `string`
+
+Defined in: [packages/renderer-dom/src/styles.ts:63](https://github.com/Sarkasian/pebbledash/blob/d184e4b7b58802ec6202eac8e1a4bff4e89fc278/packages/renderer-dom/src/styles.ts#L63)
+
+Get the complete base styles for the dashboard including CSS variables.
+
+## Parameters
+
+### rootClass
+
+`string` = `'ud'`
+
+The CSS class name prefix (default: 'ud')
+
+## Returns
+
+`string`

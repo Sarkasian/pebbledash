@@ -152,9 +152,17 @@ export class OverlayController {
     const allowedPct = Math.max(0, r.max - r.min);
     const allowedPx = (isVertical ? rect.width : rect.height) * (allowedPct / 100);
     const MIN_RANGE_PX = 2;
+    
+    // Check if edge is locked via tile constraints
+    const configManager = this.model.getConfigManager();
+    const constraints = configManager.getTileConstraints(edgeData.tileId);
+    const isLocked = constraints?.lockedZones?.includes(edgeData.side as 'top' | 'bottom' | 'left' | 'right');
 
-    if (edgeData.canResize === false || allowedPx <= MIN_RANGE_PX) {
+    if (edgeData.canResize === false || allowedPx <= MIN_RANGE_PX || isLocked) {
       el.classList.add('disabled');
+    }
+    if (isLocked) {
+      el.classList.add('locked');
     }
 
     el.addEventListener('mouseenter', () => {
@@ -167,6 +175,14 @@ export class OverlayController {
       (eDown: PointerEvent) => {
         if (this.mode !== 'resize') return;
         if (el.classList.contains('disabled')) return;
+        
+        // Check if this edge is locked via tile constraints
+        const configManager = this.model.getConfigManager();
+        const constraints = configManager.getTileConstraints(edgeData.tileId);
+        if (constraints?.lockedZones?.includes(edgeData.side as 'top' | 'bottom' | 'left' | 'right')) {
+          return; // Edge is locked, don't allow resize
+        }
+        
         eDown.preventDefault();
 
         // Re-check clamp on interaction start to be safe

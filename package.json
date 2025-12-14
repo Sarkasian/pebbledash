@@ -15,9 +15,9 @@
     }
   },
   "scripts": {
-    "build": "pnpm -r --filter './packages/*' run build",
-    "build:packages": "pnpm -r --filter './packages/*' run build",
-    "clean": "pnpm -r --filter './packages/*' run clean",
+    "build": "pnpm -r run build",
+    "build:packages": "pnpm -r run build",
+    "clean": "pnpm -r run clean",
     "demo": "pnpm --dir apps/demo exec vite",
     "demo:fast": "pnpm --filter @pebbledash/app-demo run dev -- --force",
     "typecheck": "tsc -b -v tsconfig.workspaces.json",
@@ -33,7 +33,10 @@
     "docs:decision-tree": "tsx scripts/print-decision-tree.ts",
     "docs:api": "typedoc",
     "bench": "vitest bench",
-    "analyze": "tsx scripts/analyze-bundle.ts"
+    "analyze": "tsx scripts/analyze-bundle.ts",
+    "prepublish": "pnpm build",
+    "publish:dry": "pnpm -r publish --dry-run --access public",
+    "publish:packages": "pnpm -r publish --access public"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",

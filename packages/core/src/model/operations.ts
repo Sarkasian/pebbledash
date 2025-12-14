@@ -70,6 +70,8 @@ export async function splitTile(
     .toArray()
     .filter((t) => t.id !== tileId);
   nextTiles.push(a, b);
+  // Track the new tile ID (conventionally the second tile 'b')
+  const newTileId = b.id;
   try {
     let nextState = new DashboardState({ tiles: nextTiles });
     nextState = canonicalizeState(nextState, ctx.getConfig().epsilon ?? 1e-6);
@@ -80,7 +82,7 @@ export async function splitTile(
       .evaluate('validate', ctx.makeDecisionContext('validate', {}));
     await ctx.getLifecycle().emit('after:split', { tileId, params: p, result: post });
     if (post.valid) ctx.notify('split');
-    return post;
+    return { ...post, newTileId };
   } catch (e) {
     return { valid: false, violations: [{ code: 'InvalidSplit', message: (e as Error).message }] };
   }
@@ -180,6 +182,8 @@ export async function insertTile(
     .toArray()
     .filter((t) => t.id !== refId);
   nextTiles.push(a, b);
+  // Track the new tile ID (the one that doesn't have the original refId)
+  const newTileId = a.id === refId ? b.id : a.id;
   try {
     let nextState = new DashboardState({ tiles: nextTiles });
     nextState = canonicalizeState(nextState, ctx.getConfig().epsilon ?? 1e-6);
@@ -190,7 +194,7 @@ export async function insertTile(
       .evaluate('validate', ctx.makeDecisionContext('validate', {}));
     await ctx.getLifecycle().emit('after:insert', { tileId: refId, params: p, result: post });
     if (post.valid) ctx.notify('insert');
-    return post;
+    return { ...post, newTileId };
   } catch (e) {
     return { valid: false, violations: [{ code: 'InvalidInsert', message: (e as Error).message }] };
   }
@@ -229,7 +233,7 @@ export async function deleteTile(ctx: ModelContext, tileId: TileId): Promise<Dec
 export async function resizeTile(
   ctx: ModelContext,
   tileId: TileId,
-  p: Omit<ResizeParams, 'tileId'>,
+  p: Omit<ResizeParams, 'tileId'> & { skipHistory?: boolean },
 ): Promise<DecisionResult> {
   if (!(await ctx.getLifecycle().emit('before:resize', { tileId, params: p }))) {
     return { valid: false, violations: [{ code: 'Cancelled', message: 'Cancelled by hook' }] };
@@ -238,7 +242,7 @@ export async function resizeTile(
   if (!seamId) {
     return { valid: false, violations: [{ code: 'NoSeam', message: 'Seam not found for edge' }] };
   }
-  const res = await resizeSeam(ctx, seamId, p.delta);
+  const res = await resizeSeam(ctx, seamId, p.delta, { skipHistory: p.skipHistory });
   await ctx.getLifecycle().emit('after:resize', { tileId, params: p, result: res });
   if (res.valid) ctx.notify('resize');
   return res;
@@ -497,7 +501,7 @@ export async function resizeSeam(
   ctx: ModelContext,
   seamId: string,
   delta: number,
-  opts?: { span?: [number, number] },
+  opts?: { span?: [number, number]; skipHistory?: boolean },
 ): Promise<DecisionResult> {
   const { clampedDelta } = coreClampSeamDelta(ctx.getState(), seamId, delta, {
     minTile: ctx.getConfig().minTile,
@@ -520,6 +524,9 @@ export async function resizeSeam(
   });
   if (!post.valid) return post;
   ctx.setState(normalized);
-  ctx.getHistory().record(normalized);
+  // Only record history if not skipping (for batched operations like drag resize)
+  if (!opts?.skipHistory) {
+    ctx.getHistory().record(normalized);
+  }
   return post;
 }

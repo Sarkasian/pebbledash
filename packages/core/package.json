@@ -4,6 +4,24 @@
   "description": "Headless dashboard core: tiles, constraints, history",
   "type": "module",
   "license": "MIT",
+  "author": "Pebbledash Contributors",
+  "homepage": "https://github.com/pebbledash/pebbledash#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pebbledash/pebbledash.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/pebbledash/pebbledash/issues"
+  },
+  "keywords": [
+    "dashboard",
+    "tiling",
+    "layout",
+    "grid",
+    "headless",
+    "typescript"
+  ],
   "sideEffects": false,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

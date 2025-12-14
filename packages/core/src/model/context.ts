@@ -7,7 +7,7 @@ import type { LifecycleManager } from '../lifecycle/LifecycleManager.js';
 import type { DecisionEngine } from '../decision-engine/DecisionEngine.js';
 import type { CoreConfig } from './types.js';
 
-export type ModelOp = Operation | 'initialize' | 'undo' | 'redo' | 'restore';
+export type ModelOp = Operation | 'initialize' | 'undo' | 'redo' | 'restore' | 'updateTile';
 
 export interface ModelContext {
   getConfig(): CoreConfig;
