@@ -36,7 +36,7 @@
     "analyze": "tsx scripts/analyze-bundle.ts",
     "prepublish": "pnpm build",
     "publish:dry": "pnpm -r publish --dry-run --access public",
-    "publish:packages": "pnpm -r publish --access public"
+    "publish:packages": "pnpm publish -r --access public --filter './packages/**'"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",
