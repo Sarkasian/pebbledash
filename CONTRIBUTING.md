@@ -1,6 +1,6 @@
-# Contributing to Pebbledash
+# Contributing to pebbledash
 
-Thank you for your interest in contributing to Pebbledash! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to pebbledash! This document provides guidelines and instructions for contributing.
 
 ## Development Setup
 

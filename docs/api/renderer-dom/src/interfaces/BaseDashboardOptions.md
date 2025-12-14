@@ -1,8 +1,8 @@
-[**Pebbledash API Reference v0.0.0**](../../../README.md)
+[**pebbledash API Reference v0.0.0**](../../../README.md)
 
 ***
 
-[Pebbledash API Reference](../../../modules.md) / [renderer-dom/src](../README.md) / BaseDashboardOptions
+[pebbledash API Reference](../../../modules.md) / [renderer-dom/src](../README.md) / BaseDashboardOptions
 
 # Interface: BaseDashboardOptions
 

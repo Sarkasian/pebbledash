@@ -1,8 +1,8 @@
-[**Pebbledash API Reference v0.0.0**](../../../README.md)
+[**pebbledash API Reference v0.0.0**](../../../README.md)
 
 ***
 
-[Pebbledash API Reference](../../../modules.md) / [core/src](../README.md) / CURRENT\_CONFIG\_VERSION
+[pebbledash API Reference](../../../modules.md) / [core/src](../README.md) / CURRENT\_CONFIG\_VERSION
 
 # Variable: CURRENT\_CONFIG\_VERSION
 

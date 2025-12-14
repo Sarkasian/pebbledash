@@ -1,8 +1,8 @@
-[**Pebbledash API Reference v0.0.0**](../../../README.md)
+[**pebbledash API Reference v0.0.0**](../../../README.md)
 
 ***
 
-[Pebbledash API Reference](../../../modules.md) / [core/src](../README.md) / Snapshot
+[pebbledash API Reference](../../../modules.md) / [core/src](../README.md) / Snapshot
 
 # Type Alias: Snapshot
 

@@ -1,8 +1,8 @@
-[**Pebbledash API Reference v0.0.0**](../../../README.md)
+[**pebbledash API Reference v0.0.0**](../../../README.md)
 
 ***
 
-[Pebbledash API Reference](../../../modules.md) / [renderer-dom/src](../README.md) / CSS\_VARIABLES
+[pebbledash API Reference](../../../modules.md) / [renderer-dom/src](../README.md) / CSS\_VARIABLES
 
 # Variable: CSS\_VARIABLES
 

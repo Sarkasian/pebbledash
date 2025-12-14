@@ -1,8 +1,8 @@
-[**Pebbledash API Reference v0.0.0**](../../../README.md)
+[**pebbledash API Reference v0.0.0**](../../../README.md)
 
 ***
 
-[Pebbledash API Reference](../../../modules.md) / [web-component/src](../README.md) / UDDashboard
+[pebbledash API Reference](../../../modules.md) / [web-component/src](../README.md) / UDDashboard
 
 # Class: UDDashboard
 

@@ -1,4 +1,4 @@
-# Pebbledash
+# pebbledash
 
 > Headless dashboard engine with perfect tiling, pluggable constraints, and optional UI wrappers.
 
@@ -7,7 +7,7 @@
 
 ## Overview
 
-Pebbledash is a TypeScript monorepo that provides a complete dashboard tiling solution:
+pebbledash is a TypeScript monorepo that provides a complete dashboard tiling solution:
 
 - **`@pebbledash/core`** - Headless layout engine (no DOM dependencies)
 - **`@pebbledash/renderer-dom`** - Vanilla DOM renderer with resize/insert interactions

@@ -4,7 +4,7 @@
   "description": "React wrapper for dashboarding core",
   "type": "module",
   "license": "MIT",
-  "author": "Pebbledash Contributors",
+  "author": "pebbledash Contributors",
   "homepage": "https://github.com/pebbledash/pebbledash#readme",
   "repository": {
     "type": "git",

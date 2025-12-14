@@ -1,8 +1,8 @@
-[**Pebbledash API Reference v0.0.0**](README.md)
+[**pebbledash API Reference v0.0.0**](README.md)
 
 ***
 
-# Pebbledash API Reference v0.0.0
+# pebbledash API Reference v0.0.0
 
 ## Modules
 

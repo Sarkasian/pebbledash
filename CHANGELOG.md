@@ -13,7 +13,7 @@ No unreleased changes.
 
 ## [0.1.0] - 2025-12-13
 
-Initial public release of the Pebbledash dashboard library.
+Initial public release of the pebbledash dashboard library.
 
 ### Added
 
