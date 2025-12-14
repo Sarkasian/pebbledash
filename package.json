@@ -1,7 +1,7 @@
 {
   "name": "Pebbledash",
-  "private": true,
-  "version": "0.0.0",
+  "private": false,
+  "version": "1.0.0",
   "type": "module",
   "description": "Highly configurable dashboarding library",
   "license": "MIT",
