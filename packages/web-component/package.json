@@ -1,6 +1,6 @@
 {
   "name": "@pebbledash/web-component",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "<ud-dashboard> custom element wrapping the DOM renderer",
   "type": "module",
   "license": "MIT",
