@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No unreleased changes.
+- Fix peer dependency ranges for the 1.x line (e.g. `@pebbledash/renderer-dom` now peers `@pebbledash/core@^1.0.0`).
 
 ---
 

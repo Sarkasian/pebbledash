@@ -1,6 +1,6 @@
 {
   "name": "@pebbledash/react",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "React wrapper for dashboarding core",
   "type": "module",
   "license": "MIT",
@@ -39,8 +39,8 @@
   "peerDependencies": {
     "react": ">=18",
     "react-dom": ">=18",
-    "@pebbledash/core": "^0.1.0",
-    "@pebbledash/renderer-dom": "^0.1.0"
+    "@pebbledash/core": "^1.0.0",
+    "@pebbledash/renderer-dom": "^1.0.0"
   },
   "scripts": {
     "build": "tsc -b",

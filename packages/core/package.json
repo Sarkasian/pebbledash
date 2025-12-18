@@ -1,6 +1,6 @@
 {
   "name": "@pebbledash/core",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Headless dashboard core: tiles, constraints, history",
   "type": "module",
   "license": "MIT",
