@@ -11,7 +11,7 @@
  * - `redistributeUtils.ts` - Pure calculation functions
  */
 
-import type { DashboardModel, TileId, TileRect } from '@pebbledash/core';
+import type { TileId, TileRect } from '@pebbledash/core';
 import type { ResizeSessionHooks } from './resizeTypes.js';
 import {
   DEFAULT_CLAMP_DEADBAND_PX,
@@ -22,7 +22,6 @@ import {
   updateGhostTileElement,
   applyVisualPreview,
   setTileTransitions,
-  cleanupVisualFeedback,
 } from './resizeSession/visualFeedback.js';
 import {
   createKeyboardState,

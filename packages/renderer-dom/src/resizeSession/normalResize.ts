@@ -3,7 +3,7 @@
  * Handles the standard seam-based resize behavior (without Shift key).
  */
 
-import type { DashboardModel, TileId, ResizeEdge } from '@pebbledash/core';
+import type { DashboardModel } from '@pebbledash/core';
 import type { EdgeData } from '../resizeTypes.js';
 import { APPLY_EPS } from '../resizeTypes.js';
 

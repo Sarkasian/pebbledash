@@ -7,7 +7,7 @@ import {
   forwardRef,
   useImperativeHandle,
 } from 'react';
-import type { DashboardModel, Tile, TileId, PartialExtendedConfig } from '@pebbledash/core';
+import type { DashboardModel, Tile, PartialExtendedConfig } from '@pebbledash/core';
 import type { BaseDashboard as BaseDashboardType } from '@pebbledash/renderer-dom';
 import { InternalDashboardContext } from './context/DashboardContext.js';
 import type { DashboardProps, DashboardApi } from './types.js';

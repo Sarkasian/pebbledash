@@ -3,7 +3,7 @@
  * Pure functions that don't depend on session state.
  */
 
-import type { TileId, TileRect } from '@pebbledash/core';
+import type { TileRect } from '@pebbledash/core';
 import type { RedistributeOption, GhostTile } from './resizeTypes.js';
 
 /**
@@ -330,7 +330,6 @@ export function calculateRedistributeOptionsForTiles(
   minTileHeight: number
 ): RedistributeOption[] {
   const options: RedistributeOption[] = [];
-  const absDelta = Math.abs(cursorDelta);
   const cursorMovingNegative = cursorDelta < 0;
   
   // Determine drag direction based on which direction the cursor moved

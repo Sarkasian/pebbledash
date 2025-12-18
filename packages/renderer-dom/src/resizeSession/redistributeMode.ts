@@ -4,7 +4,7 @@
  */
 
 import type { TileId, TileRect, DashboardModel } from '@pebbledash/core';
-import type { RedistributeOption, GhostTile } from '../resizeTypes.js';
+import type { GhostTile } from '../resizeTypes.js';
 import {
   findTilesOnEdgeSides,
   shrinkingTileExtendsBeyond,
@@ -59,7 +59,7 @@ export function processRedistributeMode(
   cursorY: number,
   shouldRecalcOptions: boolean
 ): boolean {
-  const { container, tileElements, isVertical, originalEdgePosition, minTileWidth, minTileHeight, el, cachedContainerRect } = ctx;
+  const { container, tileElements, isVertical, originalEdgePosition, minTileWidth, minTileHeight, el } = ctx;
   const cursorPct = { x: cursorX, y: cursorY };
   
   // If roles aren't locked yet, try to determine them from first significant movement

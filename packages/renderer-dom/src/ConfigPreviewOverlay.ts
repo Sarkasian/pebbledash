@@ -238,7 +238,7 @@ export class ConfigPreviewOverlay {
     tile: { x: number; y: number; width: number; height: number },
     constraints?: { minWidth?: number; minHeight?: number; maxWidth?: number; maxHeight?: number },
     violatesMin?: boolean,
-    violatesMax?: boolean,
+    _violatesMax?: boolean,
   ): void {
     if (!this.previewConfig) return;
 

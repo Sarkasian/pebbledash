@@ -1,7 +1,7 @@
-import { useCallback, useMemo } from 'react';
-import type { PartialExtendedConfig, TileId, Tile } from '@pebbledash/core';
+import { useCallback } from 'react';
+import type { PartialExtendedConfig, TileId } from '@pebbledash/core';
 import { useInternalDashboardContext, useDashboardContextOptional } from '../context/DashboardContext.js';
-import type { DashboardState, DashboardApi } from '../types.js';
+import type { DashboardState } from '../types.js';
 
 /**
  * Hook to access the dashboard state and API.

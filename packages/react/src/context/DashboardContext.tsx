@@ -62,7 +62,7 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
 export function useDashboardStateUpdater() {
   const context = useContext(DashboardContext);
   
-  const updateState = useCallback((updates: Partial<DashboardState>) => {
+  const updateState = useCallback((_updates: Partial<DashboardState>) => {
     if (context) {
       // Context exists - this is a controlled scenario
       // The Dashboard component will call this but we can't update context from here
