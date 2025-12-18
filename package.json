@@ -35,8 +35,8 @@
     "bench": "vitest bench",
     "analyze": "tsx scripts/analyze-bundle.ts",
     "prepublish": "pnpm build",
-    "publish:dry": "pnpm -r publish --dry-run --access public",
-    "publish:packages": "pnpm publish -r --access public --filter './packages/**'"
+    "publish:dry": "pnpm -r --filter \"./packages/*\" publish --dry-run --access public",
+    "publish:packages": "pnpm -r --filter \"./packages/*\" publish --access public"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",
